@@ -24,6 +24,12 @@
 
 // <Notification-based region monitoring>
 
+- (CLBeaconRegion *)getRegion
+{
+    return [[CLBeaconRegion alloc] initWithProximityUUID:BEACON_PROXIMITY_UUID identifier:BEACON_SERVICE_NAME];
+    
+}
+
 - (void)locationManager:(CLLocationManager *)manager
 didChangeAuthorizationStatus:(CLAuthorizationStatus)status {
     
@@ -31,20 +37,16 @@ didChangeAuthorizationStatus:(CLAuthorizationStatus)status {
     BOOL canUseLocationNotifications = (status == kCLAuthorizationStatusAuthorizedWhenInUse);
     
     if (canUseLocationNotifications) {
-        [self startShowingLocationNotifications]; // Custom method defined below
+        [self startShowingLocationNotificationsForRegion:[self getRegion]];
     }
 }
 
-- (void)startShowingLocationNotifications {
-    
+- (void)startShowingLocationNotificationsForRegion:(CLBeaconRegion *)region {
+    NSLog(@"startShowingLocationNotifications");
     UILocalNotification *locNotification = [[UILocalNotification alloc] init];
     locNotification.alertBody = @"Your buddy is nearby";
     locNotification.regionTriggersOnce = YES;
-    
-    CLBeaconRegion *beaconRegion = [[CLBeaconRegion alloc] initWithProximityUUID:BEACON_PROXIMITY_UUID major:100 minor:400 identifier:BEACON_SERVICE_NAME];
-    
-    locNotification.region = beaconRegion;
-    
+    locNotification.region = region;
     [[UIApplication sharedApplication] scheduleLocalNotification:locNotification];
 }
 
@@ -54,7 +56,7 @@ didReceiveLocalNotification: (UILocalNotification *)notification {
     CLRegion *region = notification.region;
     
     if (region) {
-        NSLog(@"XYZ");
+        NSLog(@"Detected beacon");
     }
 }
 
@@ -63,6 +65,12 @@ didReceiveLocalNotification: (UILocalNotification *)notification {
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
     
+    // Set up local notifs
+    if ([UIApplication instancesRespondToSelector:@selector(registerUserNotificationSettings:)]){
+        [application registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert|UIUserNotificationTypeBadge|UIUserNotificationTypeSound categories:nil]];
+    }
+    
+    // Set up location manager/notifs
     self.locationManager = [[CLLocationManager alloc] init];
     self.locationManager.delegate = self;
     CLAuthorizationStatus status = [CLLocationManager authorizationStatus];
@@ -75,6 +83,7 @@ didReceiveLocalNotification: (UILocalNotification *)notification {
     }
     self.locationManager.pausesLocationUpdatesAutomatically = YES;
     // NOTE: We can always push the user to the iOS settings
+    [self startShowingLocationNotificationsForRegion:[self getRegion]];
     
     return YES;
 }
